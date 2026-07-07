@@ -1,7 +1,7 @@
-import type { ChatInputCommandInteraction } from 'discord.js'
+import type { RepliableInteraction } from 'discord.js'
 import { getInxxUserByDiscordId, type InxxUser } from './inxx-api.js'
 
-export async function requireInxxUser(interaction: ChatInputCommandInteraction): Promise<InxxUser | null> {
+export async function requireInxxUser(interaction: RepliableInteraction): Promise<InxxUser | null> {
   const user = await getInxxUserByDiscordId(interaction.user.id)
   if (user) {
     return user
