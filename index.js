@@ -1,16 +1,19 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const deployEntrypoint = './dist/deploy-commands.js'
+const botEntrypoint = './dist/index.js'
 
 console.log('[startup] Dishost wrapper started')
 
-console.log('[startup] Building TypeScript sources...')
-execFileSync(npmCommand, ['run', 'build'], { stdio: 'inherit' })
-console.log('[startup] Build completed')
+if (!existsSync(deployEntrypoint) || !existsSync(botEntrypoint)) {
+  console.error('[startup] Missing dist files. Run npm run build locally and commit dist before deploying.')
+  process.exit(1)
+}
 
 console.log('[startup] Deploying Discord slash commands...')
-execFileSync(npmCommand, ['run', 'deploy'], { stdio: 'inherit' })
+execFileSync(process.execPath, [deployEntrypoint], { stdio: 'inherit' })
 console.log('[startup] Slash command deploy completed')
 
 console.log('[startup] Starting Discord bot from dist/index.js...')
-await import('./dist/index.js')
+await import(botEntrypoint)
