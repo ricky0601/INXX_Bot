@@ -2,6 +2,7 @@ import {
   ChannelType,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
@@ -28,11 +29,11 @@ async function findExistingConfig(guild: NonNullable<ChatInputCommandInteraction
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   if (!interaction.inGuild()) {
-    await interaction.reply({ content: '이 명령어는 서버 안에서만 사용할 수 있습니다.', ephemeral: true })
+    await interaction.reply({ content: '이 명령어는 서버 안에서만 사용할 수 있습니다.', flags: MessageFlags.Ephemeral })
     return
   }
 
-  await interaction.deferReply({ ephemeral: true })
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   const guild = interaction.guild ?? (await interaction.client.guilds.fetch(interaction.guildId))
 
   const existing = await findExistingConfig(guild)

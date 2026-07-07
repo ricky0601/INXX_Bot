@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
   StringSelectMenuBuilder,
 } from 'discord.js'
@@ -16,7 +17,7 @@ export const data = new SlashCommandBuilder()
   )
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply({ ephemeral: true })
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
   const user = await requireInxxUser(interaction)
   if (!user) return

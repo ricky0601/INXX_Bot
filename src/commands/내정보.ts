@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js'
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { requireInxxUser } from '../lib/require-inxx-user.js'
 
 export const data = new SlashCommandBuilder()
@@ -15,7 +15,7 @@ const roleLabels: Record<string, string> = {
 }
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply({ ephemeral: true })
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
   const user = await requireInxxUser(interaction)
   if (!user) return
