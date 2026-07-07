@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './lib/load-env.js'
 import { REST, Routes } from 'discord.js'
 import { readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
