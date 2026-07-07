@@ -37,9 +37,15 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
 
   const existing = await findExistingConfig(guild)
   if (existing) {
-    await interaction.editReply(
-      `이미 설정되어 있습니다.\n- 레이드 포럼: <#${existing.forumChannelId}>\n- 메인 캘린더: <#${existing.calendarChannelId}>`,
-    )
+    const alreadySetUpEmbed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setTitle('이미 설정되어 있습니다')
+      .addFields(
+        { name: '레이드 포럼', value: `<#${existing.forumChannelId}>`, inline: true },
+        { name: '메인 캘린더', value: `<#${existing.calendarChannelId}>`, inline: true },
+      )
+
+    await interaction.editReply({ embeds: [alreadySetUpEmbed] })
     return
   }
 
@@ -77,9 +83,15 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
       calendarChannelId: calendarChannel.id,
     })
 
-    await interaction.editReply(
-      `설정이 완료되었습니다.\n- 레이드 포럼: <#${forumChannel.id}>\n- 메인 캘린더: <#${calendarChannel.id}>`,
-    )
+    const successEmbed = new EmbedBuilder()
+      .setColor(0x57f287)
+      .setTitle('설정이 완료되었습니다')
+      .addFields(
+        { name: '레이드 포럼', value: `<#${forumChannel.id}>`, inline: true },
+        { name: '메인 캘린더', value: `<#${calendarChannel.id}>`, inline: true },
+      )
+
+    await interaction.editReply({ embeds: [successEmbed] })
   } catch (error) {
     console.error('Failed to run /setup:', error)
 
@@ -88,6 +100,8 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
         ? '채널을 만들 권한이 없습니다. 봇에게 "채널 관리" 권한을 부여한 뒤 다시 시도해 주세요.'
         : '설정 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
 
-    await interaction.editReply(message)
+    const errorEmbed = new EmbedBuilder().setColor(0xed4245).setTitle('설정 실패').setDescription(message)
+
+    await interaction.editReply({ embeds: [errorEmbed] })
   }
 }
