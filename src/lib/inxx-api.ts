@@ -61,6 +61,36 @@ export type UserCharacterSummary = {
   isMain: boolean
 }
 
+export type RosterPreviewCharacter = {
+  characterName: string
+  characterClass: string
+  itemLevel: number | null
+  alreadyRegistered: boolean
+}
+
+export type RosterPreview = {
+  searchedCharacterName: string
+  serverName: string
+  characters: RosterPreviewCharacter[]
+}
+
+export type RegisterCharacterRosterInput = {
+  mainCharacterName: string
+  characters: Array<{ characterName: string; characterClass: string; itemLevel: number | null }>
+}
+
+export type RegisterCharacterRosterResult = {
+  mainCharacterName: string
+  characterCount: number
+}
+
+const lostArkErrorMessages: Record<string, string> = {
+  LostArkCharacterNotFoundError: '해당 캐릭터를 찾을 수 없습니다. 캐릭터명을 다시 확인해주세요.',
+  LostArkRateLimitError: 'Lost Ark API 요청이 많아 잠시 후 다시 시도해주세요.',
+  LostArkApiTimeoutError: 'Lost Ark API 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.',
+  LOSTARK_API_UNAVAILABLE: 'Lost Ark 연동 설정에 문제가 있습니다. 관리자에게 문의해주세요.',
+}
+
 function getBaseUrl() {
   const baseUrl = process.env.INXX_API_BASE_URL
   if (!baseUrl) {
@@ -135,6 +165,12 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   }
 }
 
+async function readLostArkAwareErrorMessage(response: Response, fallback: string): Promise<string> {
+  const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null
+  const friendlyMessage = body?.code ? lostArkErrorMessages[body.code] : undefined
+  return friendlyMessage ?? body?.message ?? fallback
+}
+
 export async function getRaidCatalog(): Promise<RaidCatalogItem[]> {
   const response = await fetch(`${getBaseUrl()}/api/bot/raid-catalog`, {
     headers: { authorization: `Bearer ${getSecret()}` },
@@ -193,6 +229,43 @@ export async function getUserCharacters(userId: string): Promise<UserCharacterSu
   }
 
   return (await response.json()) as UserCharacterSummary[]
+}
+
+export async function getRosterPreview(userId: string, characterName: string): Promise<RosterPreview> {
+  const response = await fetch(`${getBaseUrl()}/api/bot/user-characters/roster-preview`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${getSecret()}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ userId, characterName }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await readLostArkAwareErrorMessage(response, '원정대 조회에 실패했습니다.'))
+  }
+
+  return (await response.json()) as RosterPreview
+}
+
+export async function registerCharacterRoster(
+  userId: string,
+  input: RegisterCharacterRosterInput,
+): Promise<RegisterCharacterRosterResult> {
+  const response = await fetch(`${getBaseUrl()}/api/bot/user-characters/register`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${getSecret()}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ userId, ...input }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await readLostArkAwareErrorMessage(response, '캐릭터 등록에 실패했습니다.'))
+  }
+
+  return (await response.json()) as RegisterCharacterRosterResult
 }
 
 export async function joinRaidSchedule(

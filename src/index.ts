@@ -6,6 +6,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { handleRaidJoinButton, handleRaidJoinCharacterSelect } from './interactions/raid-join.js'
 import { handleRaidDeleteButton } from './interactions/raid-delete.js'
+import {
+  CHARACTER_REGISTER_SELECT_PREFIX,
+  handleCharacterRegisterSelect,
+} from './interactions/character-register.js'
 
 interface Command {
   data: SlashCommandBuilder
@@ -73,6 +77,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await handleRaidJoinCharacterSelect(interaction)
       } catch (error) {
         console.error('Failed to handle raid_join_character select:', error)
+      }
+    } else if (interaction.customId.startsWith(CHARACTER_REGISTER_SELECT_PREFIX)) {
+      try {
+        await handleCharacterRegisterSelect(interaction)
+      } catch (error) {
+        console.error('Failed to handle char_register select:', error)
       }
     }
     return
