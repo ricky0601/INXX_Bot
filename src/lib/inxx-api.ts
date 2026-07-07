@@ -18,7 +18,9 @@ export type RaidCatalogItem = {
   id: string
   raidName: string
   difficulty: string
+  requiredLevel: number | null
   defaultMaxParticipants: number
+  imageUrl: string | null
 }
 
 export type CreateRaidScheduleInput = {
@@ -47,10 +49,38 @@ export type JoinRaidScheduleInput = {
   characterId: string
 }
 
-export type JoinRaidScheduleResult = {
+export type RaidParticipant = {
+  id: string
+  userId: string
+  userDisplayName: string | null
+  userDiscordUsername: string | null
+  characterId: string | null
   characterName: string
+  characterClass: string | null
+  itemLevel: number | null
+  combatPower: number | null
   combatRole: 'dealer' | 'support'
   status: 'joined' | 'cancelled' | 'waitlisted'
+  joinedAt: string
+}
+
+export type RaidAuthor = {
+  id: string
+  displayName: string | null
+  discordUsername: string | null
+  avatarUrl: string | null
+}
+
+export type RaidCatalogSummary = {
+  imageUrl: string | null
+  requiredLevel: number | null
+}
+
+export type RaidScheduleDetail = {
+  schedule: RaidSchedule
+  author: RaidAuthor | null
+  participants: RaidParticipant[]
+  catalog: RaidCatalogSummary
 }
 
 export type UserCharacterSummary = {
@@ -58,6 +88,7 @@ export type UserCharacterSummary = {
   characterName: string
   characterClass: string | null
   itemLevel: number | null
+  combatPower: number | null
   isMain: boolean
 }
 
@@ -82,6 +113,17 @@ export type RegisterCharacterRosterInput = {
 export type RegisterCharacterRosterResult = {
   mainCharacterName: string
   characterCount: number
+}
+
+export type RefreshRosterResult = {
+  mainCharacterName: string
+  characterCount: number
+  characters: Array<{
+    characterName: string
+    characterClass: string | null
+    itemLevel: number | null
+    combatPower: number | null
+  }>
 }
 
 const lostArkErrorMessages: Record<string, string> = {
@@ -268,10 +310,27 @@ export async function registerCharacterRoster(
   return (await response.json()) as RegisterCharacterRosterResult
 }
 
+export async function refreshRoster(userId: string): Promise<RefreshRosterResult> {
+  const response = await fetch(`${getBaseUrl()}/api/bot/user-characters/refresh`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${getSecret()}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ userId }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await readLostArkAwareErrorMessage(response, '원정대 정보 최신화에 실패했습니다.'))
+  }
+
+  return (await response.json()) as RefreshRosterResult
+}
+
 export async function joinRaidSchedule(
   raidScheduleId: string,
   input: JoinRaidScheduleInput,
-): Promise<JoinRaidScheduleResult> {
+): Promise<RaidParticipant> {
   const response = await fetch(
     `${getBaseUrl()}/api/bot/raid-schedules/${encodeURIComponent(raidScheduleId)}/join`,
     {
@@ -288,5 +347,38 @@ export async function joinRaidSchedule(
     throw new Error(await readErrorMessage(response, '레이드 참여에 실패했습니다.'))
   }
 
-  return (await response.json()) as JoinRaidScheduleResult
+  return (await response.json()) as RaidParticipant
+}
+
+export async function cancelRaidSchedule(raidScheduleId: string, userId: string): Promise<void> {
+  const response = await fetch(
+    `${getBaseUrl()}/api/bot/raid-schedules/${encodeURIComponent(raidScheduleId)}/cancel`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${getSecret()}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, '레이드 참여 취소에 실패했습니다.'))
+  }
+}
+
+export async function getRaidSchedule(raidScheduleId: string): Promise<RaidScheduleDetail> {
+  const response = await fetch(
+    `${getBaseUrl()}/api/bot/raid-schedules/${encodeURIComponent(raidScheduleId)}`,
+    {
+      headers: { authorization: `Bearer ${getSecret()}` },
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, '레이드 일정 조회에 실패했습니다.'))
+  }
+
+  return (await response.json()) as RaidScheduleDetail
 }

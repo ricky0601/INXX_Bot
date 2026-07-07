@@ -1,11 +1,24 @@
-import 'dotenv/config'
-import { Client, Collection, Events, GatewayIntentBits } from 'discord.js'
-import type { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js'
+import './lib/load-env.js'
+import { Client, Collection, Events, GatewayIntentBits, MessageFlags } from 'discord.js'
+import type { AutocompleteInteraction, ChatInputCommandInteraction, InteractionReplyOptions, SlashCommandBuilder } from 'discord.js'
 import { readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { handleRaidJoinButton, handleRaidJoinCharacterSelect } from './interactions/raid-join.js'
-import { handleRaidDeleteButton } from './interactions/raid-delete.js'
+import {
+  RAID_APPLY_BUTTON_PREFIX,
+  RAID_APPLY_CHARACTER_SELECT_PREFIX,
+  RAID_APPLY_ROLE_SELECT_PREFIX,
+  handleRaidApplyButton,
+  handleRaidApplyCharacterSelect,
+  handleRaidApplyRoleSelect,
+} from './interactions/raid-apply.js'
+import { RAID_CANCEL_BUTTON_PREFIX, handleRaidCancelButton } from './interactions/raid-cancel.js'
+import {
+  RAID_MANAGE_BUTTON_PREFIX,
+  RAID_MANAGE_DELETE_PREFIX,
+  handleRaidManageButton,
+  handleRaidManageDeleteButton,
+} from './interactions/raid-manage.js'
 import {
   CHARACTER_REGISTER_SELECT_PREFIX,
   handleCharacterRegisterSelect,
@@ -55,28 +68,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   if (interaction.isButton()) {
-    if (interaction.customId.startsWith('raid_join:')) {
+    if (interaction.customId.startsWith(RAID_APPLY_BUTTON_PREFIX)) {
       try {
-        await handleRaidJoinButton(interaction)
+        await handleRaidApplyButton(interaction)
       } catch (error) {
-        console.error('Failed to handle raid_join button:', error)
+        console.error('Failed to handle raid_apply button:', error)
       }
-    } else if (interaction.customId.startsWith('raid_delete:')) {
+    } else if (interaction.customId.startsWith(RAID_CANCEL_BUTTON_PREFIX)) {
       try {
-        await handleRaidDeleteButton(interaction)
+        await handleRaidCancelButton(interaction)
       } catch (error) {
-        console.error('Failed to handle raid_delete button:', error)
+        console.error('Failed to handle raid_cancel button:', error)
+      }
+    } else if (interaction.customId.startsWith(RAID_MANAGE_BUTTON_PREFIX)) {
+      try {
+        await handleRaidManageButton(interaction)
+      } catch (error) {
+        console.error('Failed to handle raid_manage button:', error)
+      }
+    } else if (interaction.customId.startsWith(RAID_MANAGE_DELETE_PREFIX)) {
+      try {
+        await handleRaidManageDeleteButton(interaction)
+      } catch (error) {
+        console.error('Failed to handle raid_manage_delete button:', error)
       }
     }
     return
   }
 
   if (interaction.isStringSelectMenu()) {
-    if (interaction.customId.startsWith('raid_join_character:')) {
+    if (interaction.customId.startsWith(RAID_APPLY_ROLE_SELECT_PREFIX)) {
       try {
-        await handleRaidJoinCharacterSelect(interaction)
+        await handleRaidApplyRoleSelect(interaction)
       } catch (error) {
-        console.error('Failed to handle raid_join_character select:', error)
+        console.error('Failed to handle raid_apply_role select:', error)
+      }
+    } else if (interaction.customId.startsWith(RAID_APPLY_CHARACTER_SELECT_PREFIX)) {
+      try {
+        await handleRaidApplyCharacterSelect(interaction)
+      } catch (error) {
+        console.error('Failed to handle raid_apply_character select:', error)
       }
     } else if (interaction.customId.startsWith(CHARACTER_REGISTER_SELECT_PREFIX)) {
       try {
@@ -97,7 +128,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction)
   } catch (error) {
     console.error(error)
-    const reply = { content: '명령 처리 중 오류가 발생했습니다.', ephemeral: true }
+    const reply: InteractionReplyOptions = { content: '명령 처리 중 오류가 발생했습니다.', flags: MessageFlags.Ephemeral }
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp(reply)
     } else {

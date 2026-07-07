@@ -5,12 +5,19 @@ import {
   ButtonStyle,
   ChannelType,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js'
-import { getGuildConfig, createRaidSchedule } from '../lib/inxx-api.js'
+import { getGuildConfig, createRaidSchedule, getRaidSchedule } from '../lib/inxx-api.js'
 import { requireInxxUser } from '../lib/require-inxx-user.js'
 import { getCachedRaidCatalog } from '../lib/raid-catalog-cache.js'
+import { buildRaidEmbed } from '../lib/raid-embed.js'
+import { suggestDates } from '../lib/date-time-suggest.js'
+
+const hourChoices = Array.from({ length: 24 }, (_, index) => ({
+  name: `${String(index).padStart(2, '0')}시`,
+  value: index,
+}))
 
 export const data = new SlashCommandBuilder()
   .setName('레이드')
@@ -22,17 +29,28 @@ export const data = new SlashCommandBuilder()
     option.setName('난이도').setDescription('난이도 선택').setRequired(true).setAutocomplete(true),
   )
   .addStringOption((option) =>
-    option.setName('날짜').setDescription('예: 2026-08-01').setRequired(true),
+    option.setName('날짜').setDescription('예: 2026-08-01').setRequired(true).setAutocomplete(true),
+  )
+  .addIntegerOption((option) =>
+    option
+      .setName('시')
+      .setDescription('미선택 시 21시')
+      .setRequired(false)
+      .addChoices(...hourChoices),
   )
   .addStringOption((option) =>
-    option.setName('시간').setDescription('24시간 형식, 예: 20:30').setRequired(true),
+    option
+      .setName('분')
+      .setDescription('미선택 시 00분')
+      .setRequired(false)
+      .addChoices({ name: '00분', value: '00' }, { name: '30분', value: '30' }),
   )
   .addIntegerOption((option) =>
     option
       .setName('모집인원')
-      .setDescription('비워두면 인원 제한 없음')
+      .setDescription('비워두면 레이드 기본 인원 (지평/세르카 4, 나머지 8)')
       .setMinValue(1)
-      .setMaxValue(30)
+      .setMaxValue(8)
       .setRequired(false),
   )
   .addStringOption((option) =>
@@ -69,6 +87,11 @@ export const autocomplete = async (interaction: AutocompleteInteraction) => {
     return
   }
 
+  if (focused.name === '날짜') {
+    await interaction.respond(suggestDates(focused.value))
+    return
+  }
+
   await interaction.respond([])
 }
 
@@ -86,11 +109,11 @@ function formatKst(iso: string) {
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   if (!interaction.inGuild()) {
-    await interaction.reply({ content: '이 명령어는 서버 안에서만 사용할 수 있습니다.', ephemeral: true })
+    await interaction.reply({ content: '이 명령어는 서버 안에서만 사용할 수 있습니다.', flags: MessageFlags.Ephemeral })
     return
   }
 
-  await interaction.deferReply({ ephemeral: true })
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   const guild = interaction.guild ?? (await interaction.client.guilds.fetch(interaction.guildId))
 
   const guildConfig = await getGuildConfig(guild.id)
@@ -111,7 +134,9 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   const raidName = interaction.options.getString('레이드', true)
   const difficulty = interaction.options.getString('난이도', true)
   const date = interaction.options.getString('날짜', true)
-  const time = interaction.options.getString('시간', true)
+  const hour = interaction.options.getInteger('시') ?? 21
+  const minute = interaction.options.getString('분') ?? '00'
+  const time = `${String(hour).padStart(2, '0')}:${minute}`
   const maxParticipants = interaction.options.getInteger('모집인원')
   const memo = interaction.options.getString('메모')
 
@@ -122,13 +147,20 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     return
   }
 
+  if (maxParticipants != null && maxParticipants > raid.defaultMaxParticipants) {
+    await interaction.editReply(`선택한 레이드의 모집 인원은 최대 ${raid.defaultMaxParticipants}명입니다.`)
+    return
+  }
+
+  const resolvedMaxParticipants = maxParticipants ?? raid.defaultMaxParticipants
+
   let schedule
   try {
     schedule = await createRaidSchedule({
       raidId: raid.id,
       date,
       time,
-      maxParticipants,
+      maxParticipants: resolvedMaxParticipants,
       memo,
       creatorUserId: user.id,
     })
@@ -138,38 +170,38 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     return
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle(schedule.title)
-    .addFields(
-      { name: '일시', value: formatKst(schedule.scheduledAt), inline: true },
-      { name: '모집 인원', value: schedule.maxParticipants ? `${schedule.maxParticipants}명` : '제한 없음', inline: true },
+  let detail
+  try {
+    detail = await getRaidSchedule(schedule.id)
+  } catch (error) {
+    console.error('Failed to fetch raid schedule detail:', error)
+    await interaction.editReply(
+      '레이드 일정은 생성됐지만 상세 정보를 불러오지 못했습니다. 관리자에게 알려주세요.',
     )
-    .setFooter({ text: `주최: ${user.displayName ?? user.discordUsername ?? '알 수 없음'}` })
-
-  if (schedule.memo) {
-    embed.addFields({ name: '메모', value: schedule.memo })
+    return
   }
 
-  const joinButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  const embed = buildRaidEmbed(detail)
+
+  const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId(`raid_join:${schedule.id}:dealer`)
-      .setLabel('딜러로 참여')
+      .setCustomId(`raid_apply:${schedule.id}`)
+      .setLabel('참가신청')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`raid_join:${schedule.id}:support`)
-      .setLabel('서포터로 참여')
-      .setStyle(ButtonStyle.Success),
+      .setCustomId(`raid_cancel:${schedule.id}`)
+      .setLabel('취소')
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId(`raid_delete:${schedule.id}`)
-      .setLabel('삭제')
+      .setCustomId(`raid_manage:${schedule.id}`)
+      .setLabel('관리')
       .setStyle(ButtonStyle.Danger),
   )
 
   try {
     const thread = await forumChannel.threads.create({
       name: `${schedule.title} · ${formatKst(schedule.scheduledAt)}`,
-      message: { embeds: [embed], components: [joinButtons] },
+      message: { embeds: [embed], components: [buttons] },
     })
 
     await interaction.editReply(`레이드 일정이 등록되고 포럼에 게시되었습니다: ${thread.toString()}`)
