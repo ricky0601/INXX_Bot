@@ -135,7 +135,7 @@ export async function handleRaidApplyCharacterSelect(interaction) {
         components: [],
     });
     if (interaction.channel?.isSendable()) {
-        const displayName = user.displayName ?? user.discordUsername ?? '누군가';
+        const displayName = user.mainCharacterName ?? user.displayName ?? user.discordUsername ?? '누군가';
         await interaction.channel.send(`🙋 **${displayName}**님이 ${roleLabels[result.combatRole]}로 참여했습니다 (캐릭터: ${result.characterName})`);
     }
 }

@@ -51,15 +51,13 @@ function formatParticipantLine(participant) {
     return [`• **${headline}**`, `${participant.characterName} · ${className} · ${level} · CP ${cp}`].join('\n');
 }
 function formatRaidSummary(detail) {
-    const { schedule, author, participants, catalog } = detail;
-    const leader = author?.displayName ?? author?.discordUsername ?? '알 수 없음';
+    const { schedule, participants, catalog } = detail;
     const avgItemLevel = average(participants.map((participant) => participant.itemLevel));
     const avgCombatPower = average(participants.map((participant) => participant.combatPower));
     const currentParticipants = participants.length;
     const participantLimit = schedule.maxParticipants != null ? `${currentParticipants}/${schedule.maxParticipants}` : `${currentParticipants}/제한 없음`;
     return [
         `**일시**\n${formatKst(schedule.scheduledAt)}`,
-        `**공대장**\n${leader}`,
         `**모집 현황**\n${participantLimit}`,
         `**입장 레벨**\n${catalog.requiredLevel != null ? `Lv.${catalog.requiredLevel}` : '—'}`,
         `**공격대 평균**\n레벨 ${formatLevel(avgItemLevel)} · 전투력 ${formatNumber(avgCombatPower)}`,
@@ -83,7 +81,7 @@ export function formatParticipantList(participants, role) {
     return result;
 }
 export function buildRaidEmbed(detail) {
-    const { schedule, author, participants, catalog } = detail;
+    const { schedule, participants, catalog } = detail;
     const dealers = participants.filter((participant) => participant.combatRole === 'dealer');
     const supports = participants.filter((participant) => participant.combatRole === 'support');
     const embed = new EmbedBuilder()
@@ -94,12 +92,6 @@ export function buildRaidEmbed(detail) {
     console.log('[buildRaidEmbed] catalog.imageUrl=%s INXX_WEB_BASE_URL=%s resolved=%s', catalog.imageUrl, process.env.INXX_WEB_BASE_URL ?? '(unset)', resolvedImageUrl ?? '(none)');
     if (resolvedImageUrl) {
         embed.setImage(resolvedImageUrl);
-    }
-    if (author) {
-        embed.setAuthor({
-            name: `공대 모집 · ${author.displayName ?? author.discordUsername ?? '알 수 없음'}`,
-            iconURL: author.avatarUrl ?? undefined,
-        });
     }
     embed.addFields({
         name: `딜러 (${dealers.length})`,
