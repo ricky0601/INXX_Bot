@@ -64,13 +64,6 @@ export type RaidParticipant = {
   joinedAt: string
 }
 
-export type RaidAuthor = {
-  id: string
-  displayName: string | null
-  discordUsername: string | null
-  avatarUrl: string | null
-}
-
 export type RaidCatalogSummary = {
   imageUrl: string | null
   requiredLevel: number | null
@@ -78,7 +71,6 @@ export type RaidCatalogSummary = {
 
 export type RaidScheduleDetail = {
   schedule: RaidSchedule
-  author: RaidAuthor | null
   participants: RaidParticipant[]
   catalog: RaidCatalogSummary
 }

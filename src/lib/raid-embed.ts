@@ -58,8 +58,7 @@ function formatParticipantLine(participant: RaidParticipant): string {
 }
 
 function formatRaidSummary(detail: RaidScheduleDetail): string {
-  const { schedule, author, participants, catalog } = detail
-  const leader = author?.displayName ?? author?.discordUsername ?? '알 수 없음'
+  const { schedule, participants, catalog } = detail
   const avgItemLevel = average(participants.map((participant) => participant.itemLevel))
   const avgCombatPower = average(participants.map((participant) => participant.combatPower))
   const currentParticipants = participants.length
@@ -67,7 +66,6 @@ function formatRaidSummary(detail: RaidScheduleDetail): string {
 
   return [
     `**일시**\n${formatKst(schedule.scheduledAt)}`,
-    `**공대장**\n${leader}`,
     `**모집 현황**\n${participantLimit}`,
     `**입장 레벨**\n${catalog.requiredLevel != null ? `Lv.${catalog.requiredLevel}` : '—'}`,
     `**공격대 평균**\n레벨 ${formatLevel(avgItemLevel)} · 전투력 ${formatNumber(avgCombatPower)}`,
@@ -97,7 +95,7 @@ export function formatParticipantList(
 }
 
 export function buildRaidEmbed(detail: RaidScheduleDetail): EmbedBuilder {
-  const { schedule, author, participants, catalog } = detail
+  const { schedule, participants, catalog } = detail
 
   const dealers = participants.filter((participant) => participant.combatRole === 'dealer')
   const supports = participants.filter((participant) => participant.combatRole === 'support')
@@ -116,13 +114,6 @@ export function buildRaidEmbed(detail: RaidScheduleDetail): EmbedBuilder {
   )
   if (resolvedImageUrl) {
     embed.setImage(resolvedImageUrl)
-  }
-
-  if (author) {
-    embed.setAuthor({
-      name: `공대 모집 · ${author.displayName ?? author.discordUsername ?? '알 수 없음'}`,
-      iconURL: author.avatarUrl ?? undefined,
-    })
   }
 
   embed.addFields(

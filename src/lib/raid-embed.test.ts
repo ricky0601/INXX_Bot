@@ -46,12 +46,6 @@ function createDetail(overrides: Partial<RaidScheduleDetail> = {}): RaidSchedule
       memo: '메모',
       createdBy: 'user-id',
     },
-    author: {
-      id: 'user-id',
-      displayName: '주최자',
-      discordUsername: 'host#1234',
-      avatarUrl: null,
-    },
     participants: [],
     catalog: {
       imageUrl: 'https://example.com/raid.webp',
@@ -125,9 +119,7 @@ describe('buildRaidEmbed', () => {
     const data = embed.toJSON()
 
     expect(data.title).toBe('[하드] 4막: 아륪체')
-    expect(data.author?.name).toBe('공대 모집 · 주최자')
     expect(data.description).toContain('**일시**')
-    expect(data.description).toContain('**공대장**')
     expect(data.description).toContain('**모집 현황**')
     expect(data.description).toContain('0/8')
     expect(data.description).toContain('**입장 레벨**')

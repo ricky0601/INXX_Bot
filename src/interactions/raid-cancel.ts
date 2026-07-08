@@ -56,7 +56,7 @@ export async function handleRaidCancelButton(interaction: ButtonInteraction) {
   await interaction.editReply('레이드 참여가 취소되었습니다.')
 
   if (interaction.channel?.isSendable()) {
-    const displayName = user.displayName ?? user.discordUsername ?? '누군가'
+    const displayName = user.mainCharacterName ?? user.displayName ?? user.discordUsername ?? '누군가'
     await interaction.channel.send(`🚫 **${displayName}**님이 레이드 참여를 취소했습니다.`)
   }
 }
