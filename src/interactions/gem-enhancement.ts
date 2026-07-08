@@ -1,35 +1,28 @@
 import { MessageFlags } from 'discord.js'
 import type { ButtonInteraction } from 'discord.js'
 import {
-  GEM_ENHANCE_BUTTON_ID,
   GEM_ENHANCEMENT_BUTTON_PREFIX,
-  GEM_GAHO_DRAW_BUTTON_ID,
-  GEM_GAHO_SKIP_BUTTON_ID,
   buildGemEnhancementMessage,
+  parseGemEnhancementButtonId,
 } from '../lib/gem-enhancement-message.js'
-import { runGemEnhancementAction, type GemEnhancementAction } from '../lib/gem-enhancement-api.js'
+import { runGemEnhancementAction } from '../lib/gem-enhancement-api.js'
 import { getInxxUserByDiscordId } from '../lib/inxx-api.js'
 import { notLinkedMessage } from '../lib/login-hint.js'
 
 export { GEM_ENHANCEMENT_BUTTON_PREFIX }
 
-function parseGemAction(customId: string): GemEnhancementAction | null {
-  switch (customId) {
-    case GEM_ENHANCE_BUTTON_ID:
-      return 'attempt'
-    case GEM_GAHO_DRAW_BUTTON_ID:
-      return 'draw-gaho'
-    case GEM_GAHO_SKIP_BUTTON_ID:
-      return 'skip-gaho'
-    default:
-      return null
-  }
-}
-
 export async function handleGemEnhancementButton(interaction: ButtonInteraction) {
-  const action = parseGemAction(interaction.customId)
-  if (!action) {
+  const parsed = parseGemEnhancementButtonId(interaction.customId)
+  if (!parsed) {
     await interaction.reply({ content: '보석 강화 버튼 정보가 올바르지 않습니다.', flags: MessageFlags.Ephemeral })
+    return
+  }
+
+  if (interaction.user.id !== parsed.ownerId) {
+    await interaction.reply({
+      content: '본인의 보석 강화 결과에서만 사용할 수 있는 버튼입니다.',
+      flags: MessageFlags.Ephemeral,
+    })
     return
   }
 
@@ -42,9 +35,10 @@ export async function handleGemEnhancementButton(interaction: ButtonInteraction)
   }
 
   try {
-    const result = await runGemEnhancementAction(user.id, action)
+    const result = await runGemEnhancementAction(user.id, parsed.action)
     await interaction.editReply(
-      buildGemEnhancementMessage(result.view, result, {
+      buildGemEnhancementMessage(result.view, result, parsed.ownerId, {
+        hideDisabledButtons: true,
         footerName: user.mainCharacterName ?? user.displayName,
         botName: interaction.client.user.username,
       }),

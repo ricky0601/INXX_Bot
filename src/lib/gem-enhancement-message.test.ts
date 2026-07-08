@@ -6,9 +6,12 @@ import {
   GEM_GAHO_SKIP_BUTTON_ID,
   buildGemEnhancementMessage,
   buildGemEnhancementRankingMessage,
+  parseGemEnhancementButtonId,
   premiumGahoEffects,
   formatPremiumGahoEffect,
 } from './gem-enhancement-message.js'
+
+const TEST_OWNER_ID = 'owner-1'
 
 function createView(overrides: Partial<NonNullable<GemEnhancementView['currentUserState']>> = {}): GemEnhancementView {
   return {
@@ -78,7 +81,7 @@ function requireState(view: GemEnhancementView) {
 
 describe('buildGemEnhancementMessage', () => {
   it('renders a status embed and three action buttons', () => {
-    const message = buildGemEnhancementMessage(createView())
+    const message = buildGemEnhancementMessage(createView(), null, TEST_OWNER_ID)
 
     expect(message.embeds).toHaveLength(1)
 
@@ -92,6 +95,16 @@ describe('buildGemEnhancementMessage', () => {
     expect(JSON.stringify(row)).toContain(GEM_ENHANCE_BUTTON_ID)
     expect(JSON.stringify(row)).toContain(GEM_GAHO_DRAW_BUTTON_ID)
     expect(JSON.stringify(row)).toContain(GEM_GAHO_SKIP_BUTTON_ID)
+    expect(JSON.stringify(row)).toContain(TEST_OWNER_ID)
+  })
+
+  it('embeds the owner id in each button customId so only the poster can act on it', () => {
+    const message = buildGemEnhancementMessage(createView(), null, TEST_OWNER_ID)
+    const row = message.components[0].toJSON() as { components: { custom_id: string }[] }
+
+    for (const component of row.components) {
+      expect(parseGemEnhancementButtonId(component.custom_id)).toMatchObject({ ownerId: TEST_OWNER_ID })
+    }
   })
 
   it('renders an attempt result headline and transition copy', () => {
@@ -114,7 +127,7 @@ describe('buildGemEnhancementMessage', () => {
       },
     }
 
-    const embed = buildGemEnhancementMessage(action.view, action).embeds[0].toJSON()
+    const embed = buildGemEnhancementMessage(action.view, action, TEST_OWNER_ID).embeds[0].toJSON()
 
     expect(embed.description).toBe('💎 강화 성공')
     expect(embed.fields?.find((field) => field.name === '이번 시도')?.value).toContain('7강 → 8강')
@@ -142,21 +155,24 @@ describe('buildGemEnhancementMessage', () => {
       },
     }
 
-    const embed = buildGemEnhancementMessage(action.view, action).embeds[0].toJSON()
+    const embed = buildGemEnhancementMessage(action.view, action, TEST_OWNER_ID).embeds[0].toJSON()
 
     expect(embed.description).toBe('🛡️ 강화 실패')
     expect(embed.fields?.find((field) => field.name === '이번 시도')?.value).toBe('93.3% 확률로 강화에 실패했어요.')
   })
 
   it('renders the footer as main character name and bot name', () => {
-    const message = buildGemEnhancementMessage(createView(), null, { footerName: '귀엽냐구', botName: 'INXX_Bot' })
+    const message = buildGemEnhancementMessage(createView(), null, TEST_OWNER_ID, {
+      footerName: '귀엽냐구',
+      botName: 'INXX_Bot',
+    })
     const statusEmbed = message.embeds[0].toJSON()
 
     expect(statusEmbed.footer?.text).toBe('귀엽냐구 • INXX_Bot')
   })
 
   it('omits action buttons and keeps only the status embed when withButtons is false', () => {
-    const message = buildGemEnhancementMessage(createView(), null, { withButtons: false })
+    const message = buildGemEnhancementMessage(createView(), null, TEST_OWNER_ID, { withButtons: false })
 
     expect(message.embeds).toHaveLength(1)
     expect(message.components).toHaveLength(0)
@@ -166,7 +182,7 @@ describe('buildGemEnhancementMessage', () => {
     const view = createView({ gaho: { ready: true, count: 6, shield: 1, downShield: 1 } })
     view.cooldownRemainingSeconds = 21
 
-    const message = buildGemEnhancementMessage(view, null, { hideDisabledButtons: true })
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID, { hideDisabledButtons: true })
 
     expect(message.components).toHaveLength(1)
     const row = message.components[0].toJSON()
@@ -180,7 +196,7 @@ describe('buildGemEnhancementMessage', () => {
     const view = createView()
     view.cooldownRemainingSeconds = 21
 
-    const message = buildGemEnhancementMessage(view, null, { hideDisabledButtons: true })
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID, { hideDisabledButtons: true })
 
     expect(message.components).toHaveLength(0)
   })
@@ -205,7 +221,7 @@ describe('buildGemEnhancementMessage', () => {
       },
     }
 
-    const statusEmbed = buildGemEnhancementMessage(action.view, action).embeds[0].toJSON()
+    const statusEmbed = buildGemEnhancementMessage(action.view, action, TEST_OWNER_ID).embeds[0].toJSON()
     const cooldownField = statusEmbed.fields?.find((field) => field.name === '쿨타임')
 
     expect(cooldownField?.value).toContain('21초 후 강화 가능')
@@ -215,7 +231,7 @@ describe('buildGemEnhancementMessage', () => {
     const view = createView({ cooldownPenaltyUntil: '2099-07-08T00:01:00.000Z' })
     view.cooldownRemainingSeconds = 60
 
-    const statusEmbed = buildGemEnhancementMessage(view).embeds[0].toJSON()
+    const statusEmbed = buildGemEnhancementMessage(view, null, TEST_OWNER_ID).embeds[0].toJSON()
     const cooldownField = statusEmbed.fields?.find((field) => field.name === '쿨타임')
 
     expect(cooldownField?.value).toContain('⏳ <t:')
@@ -230,7 +246,7 @@ describe('buildGemEnhancementMessage', () => {
     })
     view.cooldownRemainingSeconds = 30
 
-    const statusEmbed = buildGemEnhancementMessage(view).embeds[0].toJSON()
+    const statusEmbed = buildGemEnhancementMessage(view, null, TEST_OWNER_ID).embeds[0].toJSON()
     const cooldownField = statusEmbed.fields?.find((field) => field.name === '쿨타임')
 
     expect(cooldownField?.value).toContain('✅ 지금 강화 가능')
@@ -238,7 +254,11 @@ describe('buildGemEnhancementMessage', () => {
   })
 
   it('enables gaho buttons and blocks enhance while gaho is ready', () => {
-    const message = buildGemEnhancementMessage(createView({ gaho: { ready: true, count: 0, shield: 0, downShield: 0 } }))
+    const message = buildGemEnhancementMessage(
+      createView({ gaho: { ready: true, count: 0, shield: 0, downShield: 0 } }),
+      null,
+      TEST_OWNER_ID,
+    )
     const row = message.components[0].toJSON()
 
     expect(row.components[0].disabled).toBe(true)
@@ -248,7 +268,7 @@ describe('buildGemEnhancementMessage', () => {
 
   it('renders enhanced mode badge in gaho field and title', () => {
     const view = createView({ enhancedMode: true })
-    const message = buildGemEnhancementMessage(view)
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID)
     const statusEmbed = message.embeds[0].toJSON()
 
     expect(statusEmbed.title).toContain('🟣 강화된 선조의 가호')
@@ -259,7 +279,7 @@ describe('buildGemEnhancementMessage', () => {
 
   it('renders duel remaining and enables enhance button even on cooldown', () => {
     const view = createView({ duelRemaining: 3 })
-    const message = buildGemEnhancementMessage(view)
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID)
     const statusEmbed = message.embeds[0].toJSON()
     const row = message.components[0].toJSON()
 
@@ -272,7 +292,7 @@ describe('buildGemEnhancementMessage', () => {
   it('enables enhance button with duel remaining even when cooldown is active', () => {
     const view = createView({ duelRemaining: 1 })
     view.cooldownRemainingSeconds = 120
-    const message = buildGemEnhancementMessage(view)
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID)
     const row = message.components[0].toJSON()
 
     expect(row.components[0].disabled).toBe(false)
@@ -280,7 +300,7 @@ describe('buildGemEnhancementMessage', () => {
 
   it('renders lucky remaining counter', () => {
     const view = createView({ luckyRemaining: 5 })
-    const message = buildGemEnhancementMessage(view)
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID)
     const statusEmbed = message.embeds[0].toJSON()
 
     const gahoField = statusEmbed.fields?.find((f) => f.name === '📜 선조의 가호')
@@ -289,7 +309,7 @@ describe('buildGemEnhancementMessage', () => {
 
   it('renders guard remaining counter', () => {
     const view = createView({ guardRemaining: 2 })
-    const message = buildGemEnhancementMessage(view)
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID)
     const statusEmbed = message.embeds[0].toJSON()
 
     const gahoField = statusEmbed.fields?.find((f) => f.name === '📜 선조의 가호')
@@ -303,7 +323,7 @@ describe('buildGemEnhancementMessage', () => {
       luckyRemaining: 3,
       guardRemaining: 1,
     })
-    const message = buildGemEnhancementMessage(view)
+    const message = buildGemEnhancementMessage(view, null, TEST_OWNER_ID)
     const statusEmbed = message.embeds[0].toJSON()
     const gahoField = statusEmbed.fields?.find((f) => f.name === '📜 선조의 가호')
 
@@ -349,7 +369,7 @@ describe('buildGemEnhancementMessage', () => {
       },
     }
 
-    const embed = buildGemEnhancementMessage(action.view, action).embeds[0].toJSON()
+    const embed = buildGemEnhancementMessage(action.view, action, TEST_OWNER_ID).embeds[0].toJSON()
     expect(embed.description).toBe('⚔️ 일기토')
     const attemptField = embed.fields?.find((f) => f.name === '이번 시도')
     expect(attemptField?.value).toContain('쿨타임')

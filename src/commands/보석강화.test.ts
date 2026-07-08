@@ -124,6 +124,7 @@ describe('/보석강화 execute', () => {
     expect(buildGemEnhancementMessage).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
+      'discord-user',
       expect.objectContaining({ withButtons: true, hideDisabledButtons: true }),
     )
     expect(interaction.channel?.send).toHaveBeenCalledWith(publicMessage)

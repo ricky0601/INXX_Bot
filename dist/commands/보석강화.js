@@ -15,7 +15,7 @@ export const execute = async (interaction) => {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
         const result = await runGemEnhancementAction(user.id, 'attempt');
-        const message = buildGemEnhancementMessage(result.view, result, {
+        const message = buildGemEnhancementMessage(result.view, result, interaction.user.id, {
             withButtons: true,
             hideDisabledButtons: true,
             footerName: user.mainCharacterName ?? user.displayName,

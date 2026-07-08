@@ -182,9 +182,13 @@ function formatAttemptCooldown(view: GemEnhancementView, result: GemEnhancementA
   if (result.cooldownSeconds <= 0) return null
 
   const lastAttemptAt = view.currentUserState?.lastAttemptAt
+  const cooldownPenaltyUntil = view.currentUserState?.cooldownPenaltyUntil
+  const penaltyEndsAt = cooldownPenaltyUntil ? new Date(cooldownPenaltyUntil).getTime() : NaN
+
   if (lastAttemptAt) {
-    const endUnix = toUnixSeconds(lastAttemptAt) + result.cooldownSeconds
-    return `⏳ <t:${endUnix}:T> 강화 가능`
+    const attemptEndsAt = new Date(lastAttemptAt).getTime() + result.cooldownSeconds * 1000
+    const endsAt = Number.isFinite(penaltyEndsAt) ? Math.max(attemptEndsAt, penaltyEndsAt) : attemptEndsAt
+    return `⏳ <t:${Math.floor(endsAt / 1000)}:T> 강화 가능`
   }
 
   return `⏳ ${result.cooldownSeconds}초 후 강화 가능`
@@ -324,13 +328,14 @@ function buildRankingEmbed(view: GemEnhancementView): EmbedBuilder {
 
 function buildButtons(
   view: GemEnhancementView,
+  ownerId: string,
   options: { hideDisabledButtons?: boolean } = {},
 ): ActionRowBuilder<ButtonBuilder> | null {
   const { hideDisabledButtons = false } = options
   const state = view.currentUserState
   const cooldown = view.cooldownRemainingSeconds
   const canEnhance = Boolean(
-    state && !state.gaho.ready && (cooldown === 0 || state.duelRemaining > 0),
+    state && !state.gaho.ready && (cooldown === 0 || state.duelRemaining > 0 || state.gahoExtraTry > 0),
   )
   const canUseGaho = Boolean(state?.gaho.ready)
   const isDuelActive = Boolean(state && state.duelRemaining > 0)
@@ -339,21 +344,21 @@ function buildButtons(
     {
       enabled: canEnhance,
       builder: new ButtonBuilder()
-        .setCustomId(GEM_ENHANCE_BUTTON_ID)
+        .setCustomId(`${GEM_ENHANCE_BUTTON_ID}:${ownerId}`)
         .setLabel(isDuelActive ? '강화 (일기토)' : '강화')
         .setStyle(isDuelActive ? ButtonStyle.Danger : ButtonStyle.Primary),
     },
     {
       enabled: canUseGaho,
       builder: new ButtonBuilder()
-        .setCustomId(GEM_GAHO_DRAW_BUTTON_ID)
+        .setCustomId(`${GEM_GAHO_DRAW_BUTTON_ID}:${ownerId}`)
         .setLabel('가호 뽑기')
         .setStyle(ButtonStyle.Success),
     },
     {
       enabled: canUseGaho,
       builder: new ButtonBuilder()
-        .setCustomId(GEM_GAHO_SKIP_BUTTON_ID)
+        .setCustomId(`${GEM_GAHO_SKIP_BUTTON_ID}:${ownerId}`)
         .setLabel('가호 넘기기')
         .setStyle(ButtonStyle.Secondary),
     },
@@ -375,6 +380,7 @@ function buildButtons(
 export function buildGemEnhancementMessage(
   view: GemEnhancementView,
   action: GemEnhancementActionResponse | null = null,
+  ownerId: string,
   options: {
     withButtons?: boolean
     hideDisabledButtons?: boolean
@@ -386,10 +392,30 @@ export function buildGemEnhancementMessage(
   const parsed = parseAction(action)
 
   const embeds = [buildStatusEmbed(view, parsed, footerName, botName)]
-  const buttonRow = withButtons ? buildButtons(view, { hideDisabledButtons }) : null
+  const buttonRow = withButtons ? buildButtons(view, ownerId, { hideDisabledButtons }) : null
   const components = buttonRow ? [buttonRow] : []
 
   return { embeds, components }
+}
+
+const GEM_ACTION_BY_PREFIX: Record<string, 'attempt' | 'draw-gaho' | 'skip-gaho'> = {
+  [GEM_ENHANCE_BUTTON_ID]: 'attempt',
+  [GEM_GAHO_DRAW_BUTTON_ID]: 'draw-gaho',
+  [GEM_GAHO_SKIP_BUTTON_ID]: 'skip-gaho',
+}
+
+export function parseGemEnhancementButtonId(
+  customId: string,
+): { action: 'attempt' | 'draw-gaho' | 'skip-gaho'; ownerId: string } | null {
+  const separatorIndex = customId.lastIndexOf(':')
+  if (separatorIndex === -1) return null
+
+  const actionId = customId.slice(0, separatorIndex)
+  const ownerId = customId.slice(separatorIndex + 1)
+  const action = GEM_ACTION_BY_PREFIX[actionId]
+  if (!action || !ownerId) return null
+
+  return { action, ownerId }
 }
 
 export function buildGemEnhancementRankingMessage(view: GemEnhancementView) {

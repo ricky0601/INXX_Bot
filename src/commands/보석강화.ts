@@ -19,7 +19,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
 
   try {
     const result = await runGemEnhancementAction(user.id, 'attempt')
-    const message = buildGemEnhancementMessage(result.view, result, {
+    const message = buildGemEnhancementMessage(result.view, result, interaction.user.id, {
       withButtons: true,
       hideDisabledButtons: true,
       footerName: user.mainCharacterName ?? user.displayName,
