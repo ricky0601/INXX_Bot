@@ -162,6 +162,29 @@ describe('buildGemEnhancementMessage', () => {
     expect(message.components).toHaveLength(0)
   })
 
+  it('hides disabled buttons but keeps actionable gaho buttons in public result messages', () => {
+    const view = createView({ gaho: { ready: true, count: 6, shield: 1, downShield: 1 } })
+    view.cooldownRemainingSeconds = 21
+
+    const message = buildGemEnhancementMessage(view, null, { hideDisabledButtons: true })
+
+    expect(message.components).toHaveLength(1)
+    const row = message.components[0].toJSON()
+    expect(row.components).toHaveLength(2)
+    expect(JSON.stringify(row)).toContain(GEM_GAHO_DRAW_BUTTON_ID)
+    expect(JSON.stringify(row)).toContain(GEM_GAHO_SKIP_BUTTON_ID)
+    expect(JSON.stringify(row)).not.toContain(GEM_ENHANCE_BUTTON_ID)
+  })
+
+  it('removes the entire action row when no buttons are usable in hide-disabled mode', () => {
+    const view = createView()
+    view.cooldownRemainingSeconds = 21
+
+    const message = buildGemEnhancementMessage(view, null, { hideDisabledButtons: true })
+
+    expect(message.components).toHaveLength(0)
+  })
+
   it('falls back to seconds text for attempt cooldown when lastAttemptAt is unavailable', () => {
     const view = createView({ lastAttemptAt: null })
     const state = requireState(view)

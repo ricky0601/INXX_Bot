@@ -257,31 +257,50 @@ function buildRankingEmbed(view) {
     });
     return embed.setDescription(lines.join('\n')).setFooter({ text: '상위 20명까지 표시됩니다.' });
 }
-function buildButtons(view) {
+function buildButtons(view, options = {}) {
+    const { hideDisabledButtons = false } = options;
     const state = view.currentUserState;
     const cooldown = view.cooldownRemainingSeconds;
     const canEnhance = Boolean(state && !state.gaho.ready && (cooldown === 0 || state.duelRemaining > 0));
     const canUseGaho = Boolean(state?.gaho.ready);
     const isDuelActive = Boolean(state && state.duelRemaining > 0);
-    return new ActionRowBuilder().addComponents(new ButtonBuilder()
-        .setCustomId(GEM_ENHANCE_BUTTON_ID)
-        .setLabel(isDuelActive ? '강화 (일기토)' : '강화')
-        .setStyle(isDuelActive ? ButtonStyle.Danger : ButtonStyle.Primary)
-        .setDisabled(!canEnhance), new ButtonBuilder()
-        .setCustomId(GEM_GAHO_DRAW_BUTTON_ID)
-        .setLabel('가호 뽑기')
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(!canUseGaho), new ButtonBuilder()
-        .setCustomId(GEM_GAHO_SKIP_BUTTON_ID)
-        .setLabel('가호 넘기기')
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(!canUseGaho));
+    const buttonStates = [
+        {
+            enabled: canEnhance,
+            builder: new ButtonBuilder()
+                .setCustomId(GEM_ENHANCE_BUTTON_ID)
+                .setLabel(isDuelActive ? '강화 (일기토)' : '강화')
+                .setStyle(isDuelActive ? ButtonStyle.Danger : ButtonStyle.Primary),
+        },
+        {
+            enabled: canUseGaho,
+            builder: new ButtonBuilder()
+                .setCustomId(GEM_GAHO_DRAW_BUTTON_ID)
+                .setLabel('가호 뽑기')
+                .setStyle(ButtonStyle.Success),
+        },
+        {
+            enabled: canUseGaho,
+            builder: new ButtonBuilder()
+                .setCustomId(GEM_GAHO_SKIP_BUTTON_ID)
+                .setLabel('가호 넘기기')
+                .setStyle(ButtonStyle.Secondary),
+        },
+    ];
+    const visibleButtons = hideDisabledButtons
+        ? buttonStates.filter((buttonState) => buttonState.enabled)
+        : buttonStates;
+    if (visibleButtons.length === 0) {
+        return null;
+    }
+    return new ActionRowBuilder().addComponents(...visibleButtons.map(({ enabled, builder }) => builder.setDisabled(!enabled)));
 }
 export function buildGemEnhancementMessage(view, action = null, options = {}) {
-    const { withButtons = true, footerName = null, botName = null } = options;
+    const { withButtons = true, hideDisabledButtons = false, footerName = null, botName = null } = options;
     const parsed = parseAction(action);
     const embeds = [buildStatusEmbed(view, parsed, footerName, botName)];
-    const components = withButtons ? [buildButtons(view)] : [];
+    const buttonRow = withButtons ? buildButtons(view, { hideDisabledButtons }) : null;
+    const components = buttonRow ? [buttonRow] : [];
     return { embeds, components };
 }
 export function buildGemEnhancementRankingMessage(view) {
