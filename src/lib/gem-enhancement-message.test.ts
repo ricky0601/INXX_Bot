@@ -5,6 +5,7 @@ import {
   GEM_GAHO_DRAW_BUTTON_ID,
   GEM_GAHO_SKIP_BUTTON_ID,
   buildGemEnhancementMessage,
+  buildGemEnhancementRankingMessage,
   premiumGahoEffects,
   formatPremiumGahoEffect,
 } from './gem-enhancement-message.js'
@@ -76,20 +77,16 @@ function requireState(view: GemEnhancementView) {
 }
 
 describe('buildGemEnhancementMessage', () => {
-  it('renders a status embed, a ranking embed and three action buttons', () => {
+  it('renders a status embed and three action buttons', () => {
     const message = buildGemEnhancementMessage(createView())
 
-    expect(message.embeds).toHaveLength(2)
+    expect(message.embeds).toHaveLength(1)
 
     const statusEmbed = message.embeds[0].toJSON()
     expect(statusEmbed.title).toBe('7강 · 장기백 35%')
     expect(statusEmbed.thumbnail?.url).toBe('https://example.com/gem-7.png')
     expect(statusEmbed.fields?.some((field) => field.name === '📜 선조의 가호')).toBe(true)
     expect(statusEmbed.fields?.some((field) => field.name === '쿨타임')).toBe(true)
-
-    const rankingEmbed = message.embeds[1].toJSON()
-    expect(rankingEmbed.title).toBe('🏆 강화 랭킹 — 현재 최고 레벨')
-    expect(rankingEmbed.description).toContain('🥇 랭커 — 10강 · 장기백 12%')
 
     const row = message.components[0].toJSON()
     expect(JSON.stringify(row)).toContain(GEM_ENHANCE_BUTTON_ID)
@@ -157,11 +154,37 @@ describe('buildGemEnhancementMessage', () => {
     expect(statusEmbed.footer?.text).toBe('귀엽냐구 • INXX_Bot')
   })
 
-  it('omits action buttons but keeps both embeds when withButtons is false (public prefix reply)', () => {
+  it('omits action buttons and keeps only the status embed when withButtons is false', () => {
     const message = buildGemEnhancementMessage(createView(), null, { withButtons: false })
 
-    expect(message.embeds).toHaveLength(2)
+    expect(message.embeds).toHaveLength(1)
     expect(message.components).toHaveLength(0)
+  })
+
+  it('renders future cooldown as a fixed available time instead of a running relative timer', () => {
+    const view = createView({ cooldownPenaltyUntil: '2099-07-08T00:01:00.000Z' })
+    view.cooldownRemainingSeconds = 60
+
+    const statusEmbed = buildGemEnhancementMessage(view).embeds[0].toJSON()
+    const cooldownField = statusEmbed.fields?.find((field) => field.name === '쿨타임')
+
+    expect(cooldownField?.value).toContain('⏳ <t:')
+    expect(cooldownField?.value).toContain(':T> 강화 가능')
+    expect(cooldownField?.value).not.toContain(':R>')
+  })
+
+  it('renders expired cooldown as immediately available', () => {
+    const view = createView({
+      lastAttemptAt: '2026-07-08T00:00:00.000Z',
+      cooldownPenaltyUntil: '2000-01-01T00:00:00.000Z',
+    })
+    view.cooldownRemainingSeconds = 30
+
+    const statusEmbed = buildGemEnhancementMessage(view).embeds[0].toJSON()
+    const cooldownField = statusEmbed.fields?.find((field) => field.name === '쿨타임')
+
+    expect(cooldownField?.value).toContain('✅ 지금 강화 가능')
+    expect(cooldownField?.value).not.toContain('초 후 강화 가능')
   })
 
   it('enables gaho buttons and blocks enhance while gaho is ready', () => {
@@ -280,5 +303,18 @@ describe('buildGemEnhancementMessage', () => {
     expect(embed.description).toBe('⚔️ 일기토')
     const attemptField = embed.fields?.find((f) => f.name === '이번 시도')
     expect(attemptField?.value).toContain('쿨타임')
+  })
+})
+
+describe('buildGemEnhancementRankingMessage', () => {
+  it('renders only the ranking embed without buttons', () => {
+    const message = buildGemEnhancementRankingMessage(createView())
+
+    expect(message.embeds).toHaveLength(1)
+    expect(message.components).toHaveLength(0)
+
+    const rankingEmbed = message.embeds[0].toJSON()
+    expect(rankingEmbed.title).toBe('🏆 강화 랭킹 — 현재 최고 레벨')
+    expect(rankingEmbed.description).toContain('🥇 랭커 — 10강 · 장기백 12%')
   })
 })

@@ -179,9 +179,21 @@ function toUnixSeconds(iso: string): number {
 }
 
 function formatCooldown(view: GemEnhancementView): string {
-  if (view.cooldownRemainingSeconds > 0) {
-    const endUnix = Math.floor(Date.now() / 1000) + view.cooldownRemainingSeconds
-    return `⏳ <t:${endUnix}:R> 강화 가능`
+  const cooldownPenaltyUntil = view.currentUserState?.cooldownPenaltyUntil
+  if (cooldownPenaltyUntil) {
+    const cooldownEndsAt = new Date(cooldownPenaltyUntil).getTime()
+    if (Number.isFinite(cooldownEndsAt)) {
+      if (cooldownEndsAt > Date.now()) {
+        const endUnix = toUnixSeconds(cooldownPenaltyUntil)
+        return `⏳ <t:${endUnix}:T> 강화 가능`
+      }
+    } else if (view.cooldownRemainingSeconds > 0) {
+      return `⏳ ${view.cooldownRemainingSeconds}초 후 강화 가능`
+    }
+  }
+
+  if (view.cooldownRemainingSeconds > 0 && !cooldownPenaltyUntil) {
+    return `⏳ ${view.cooldownRemainingSeconds}초 후 강화 가능`
   }
 
   const lastAttemptAt = view.currentUserState?.lastAttemptAt
@@ -327,10 +339,17 @@ export function buildGemEnhancementMessage(
   const { withButtons = true, footerName = null, botName = null } = options
   const parsed = parseAction(action)
 
-  const embeds = [buildStatusEmbed(view, parsed, footerName, botName), buildRankingEmbed(view)]
+  const embeds = [buildStatusEmbed(view, parsed, footerName, botName)]
   const components = withButtons ? [buildButtons(view)] : []
 
   return { embeds, components }
+}
+
+export function buildGemEnhancementRankingMessage(view: GemEnhancementView) {
+  return {
+    embeds: [buildRankingEmbed(view)],
+    components: [],
+  }
 }
 
 export { premiumGahoEffects, formatPremiumGahoEffect }
