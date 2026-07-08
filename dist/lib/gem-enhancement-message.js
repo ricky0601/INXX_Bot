@@ -139,7 +139,23 @@ function formatGaho(state) {
 function toUnixSeconds(iso) {
     return Math.floor(new Date(iso).getTime() / 1000);
 }
-function formatCooldown(view) {
+function formatAttemptCooldown(view, result) {
+    if (result.cooldownSeconds <= 0)
+        return null;
+    const lastAttemptAt = view.currentUserState?.lastAttemptAt;
+    if (lastAttemptAt) {
+        const endUnix = toUnixSeconds(lastAttemptAt) + result.cooldownSeconds;
+        return `⏳ <t:${endUnix}:T> 강화 가능`;
+    }
+    return `⏳ ${result.cooldownSeconds}초 후 강화 가능`;
+}
+function formatCooldown(view, parsed) {
+    if (parsed?.kind === 'attempt') {
+        const attemptCooldown = formatAttemptCooldown(view, parsed.result);
+        if (attemptCooldown) {
+            return attemptCooldown;
+        }
+    }
     const cooldownPenaltyUntil = view.currentUserState?.cooldownPenaltyUntil;
     if (cooldownPenaltyUntil) {
         const cooldownEndsAt = new Date(cooldownPenaltyUntil).getTime();
@@ -223,7 +239,7 @@ function buildStatusEmbed(view, parsed, footerName, botName) {
     if (ratesToShow && !ratesAllZero(ratesToShow)) {
         embed.addFields({ name: ratesLabel, value: formatRates(ratesToShow), inline: false });
     }
-    embed.addFields({ name: '📜 선조의 가호', value: formatGaho(state), inline: false }, { name: '쿨타임', value: formatCooldown(view), inline: false });
+    embed.addFields({ name: '📜 선조의 가호', value: formatGaho(state), inline: false }, { name: '쿨타임', value: formatCooldown(view, parsed), inline: false });
     if (footerName) {
         embed.setFooter({ text: botName ? `${footerName} • ${botName}` : footerName });
     }

@@ -95,7 +95,7 @@ describe('buildGemEnhancementMessage', () => {
   })
 
   it('renders an attempt result headline and transition copy', () => {
-    const view = createView()
+    const view = createView({ lastAttemptAt: '2099-07-08T00:00:00.000Z' })
     const state = requireState(view)
     const action: GemEnhancementActionResponse = {
       view,
@@ -119,6 +119,7 @@ describe('buildGemEnhancementMessage', () => {
     expect(embed.description).toBe('💎 강화 성공')
     expect(embed.fields?.find((field) => field.name === '이번 시도')?.value).toContain('7강 → 8강')
     expect(embed.fields?.some((field) => field.name === '🔮 이번 시도 확률')).toBe(true)
+    expect(embed.fields?.find((field) => field.name === '쿨타임')?.value).toContain(':T> 강화 가능')
   })
 
   it('renders the failure probability sentence for a failed attempt', () => {
@@ -159,6 +160,32 @@ describe('buildGemEnhancementMessage', () => {
 
     expect(message.embeds).toHaveLength(1)
     expect(message.components).toHaveLength(0)
+  })
+
+  it('falls back to seconds text for attempt cooldown when lastAttemptAt is unavailable', () => {
+    const view = createView({ lastAttemptAt: null })
+    const state = requireState(view)
+    const action: GemEnhancementActionResponse = {
+      view,
+      result: {
+        state,
+        result: 'failure',
+        levelBefore: 7,
+        levelAfter: 7,
+        rates: state.currentRates,
+        pityBefore: 35,
+        pityAfter: 42,
+        cooldownSeconds: 21,
+        destroyPrevented: false,
+        downPrevented: false,
+        gaho: state.gaho,
+      },
+    }
+
+    const statusEmbed = buildGemEnhancementMessage(action.view, action).embeds[0].toJSON()
+    const cooldownField = statusEmbed.fields?.find((field) => field.name === '쿨타임')
+
+    expect(cooldownField?.value).toContain('21초 후 강화 가능')
   })
 
   it('renders future cooldown as a fixed available time instead of a running relative timer', () => {

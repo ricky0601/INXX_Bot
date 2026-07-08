@@ -178,7 +178,26 @@ function toUnixSeconds(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 1000)
 }
 
-function formatCooldown(view: GemEnhancementView): string {
+function formatAttemptCooldown(view: GemEnhancementView, result: GemEnhancementAttemptResult): string | null {
+  if (result.cooldownSeconds <= 0) return null
+
+  const lastAttemptAt = view.currentUserState?.lastAttemptAt
+  if (lastAttemptAt) {
+    const endUnix = toUnixSeconds(lastAttemptAt) + result.cooldownSeconds
+    return `⏳ <t:${endUnix}:T> 강화 가능`
+  }
+
+  return `⏳ ${result.cooldownSeconds}초 후 강화 가능`
+}
+
+function formatCooldown(view: GemEnhancementView, parsed: ParsedAction | null): string {
+  if (parsed?.kind === 'attempt') {
+    const attemptCooldown = formatAttemptCooldown(view, parsed.result)
+    if (attemptCooldown) {
+      return attemptCooldown
+    }
+  }
+
   const cooldownPenaltyUntil = view.currentUserState?.cooldownPenaltyUntil
   if (cooldownPenaltyUntil) {
     const cooldownEndsAt = new Date(cooldownPenaltyUntil).getTime()
@@ -277,7 +296,7 @@ function buildStatusEmbed(
 
   embed.addFields(
     { name: '📜 선조의 가호', value: formatGaho(state), inline: false },
-    { name: '쿨타임', value: formatCooldown(view), inline: false },
+    { name: '쿨타임', value: formatCooldown(view, parsed), inline: false },
   )
 
   if (footerName) {
