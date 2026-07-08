@@ -12,13 +12,15 @@ export const execute = async (interaction) => {
         await interaction.reply({ content: notLinkedMessage(), flags: MessageFlags.Ephemeral });
         return;
     }
-    await interaction.deferReply();
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
         const result = await runGemEnhancementAction(user.id, 'attempt');
-        await interaction.editReply(buildGemEnhancementMessage(result.view, result, {
+        await interaction.followUp(buildGemEnhancementMessage(result.view, result, {
+            withButtons: false,
             footerName: user.mainCharacterName ?? user.displayName,
             botName: interaction.client.user.username,
         }));
+        await interaction.deleteReply();
     }
     catch (error) {
         const message = error instanceof Error ? error.message : '보석 강화에 실패했습니다.';
