@@ -121,6 +121,11 @@ describe('/보석강화 execute', () => {
     await execute(interaction as never)
 
     expect(interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral })
+    expect(buildGemEnhancementMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ withButtons: true, hideDisabledButtons: true }),
+    )
     expect(interaction.channel?.send).toHaveBeenCalledWith(publicMessage)
     expect(interaction.deleteReply).toHaveBeenCalledTimes(1)
     expect(interaction.editReply).not.toHaveBeenCalled()
