@@ -5,3 +5,4 @@ dist/**/*.map
 dist/**/*.test.js
 *.log
 .DS_Store
+.serena/

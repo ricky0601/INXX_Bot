@@ -23,6 +23,8 @@ import {
   CHARACTER_REGISTER_SELECT_PREFIX,
   handleCharacterRegisterSelect,
 } from './interactions/character-register.js'
+import { GEM_ENHANCEMENT_BUTTON_PREFIX, handleGemEnhancementButton } from './interactions/gem-enhancement.js'
+import { handleGemPrefixCommand, isPrefixCommandsEnabled, parseGemPrefixCommand } from './lib/prefix-commands.js'
 
 interface Command {
   data: SlashCommandBuilder
@@ -35,7 +37,12 @@ if (!token) {
   throw new Error('DISCORD_TOKEN is not set in .env')
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] }) as Client & {
+const prefixCommandsEnabled = isPrefixCommandsEnabled(process.env.INXX_ENABLE_PREFIX_COMMANDS)
+const intents = prefixCommandsEnabled
+  ? [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  : [GatewayIntentBits.Guilds]
+
+const client = new Client({ intents }) as Client & {
   commands: Collection<string, Command>
 }
 client.commands = new Collection()
@@ -92,6 +99,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } catch (error) {
         console.error('Failed to handle raid_manage_delete button:', error)
       }
+    } else if (interaction.customId.startsWith(GEM_ENHANCEMENT_BUTTON_PREFIX)) {
+      try {
+        await handleGemEnhancementButton(interaction)
+      } catch (error) {
+        console.error('Failed to handle gem_enhancement button:', error)
+      }
     }
     return
   }
@@ -136,5 +149,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 })
+
+if (prefixCommandsEnabled) {
+  client.on(Events.MessageCreate, async (message) => {
+    if (message.author.bot || !message.inGuild()) return
+
+    const command = parseGemPrefixCommand(message.content)
+    if (!command) return
+
+    try {
+      await handleGemPrefixCommand(message, command)
+    } catch (error) {
+      console.error('Failed to handle gem prefix command:', error)
+    }
+  })
+}
 
 await client.login(token)
