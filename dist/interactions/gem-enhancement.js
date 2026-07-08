@@ -30,7 +30,10 @@ export async function handleGemEnhancementButton(interaction) {
     }
     try {
         const result = await runGemEnhancementAction(user.id, action);
-        await interaction.editReply(buildGemEnhancementMessage(result.view, result));
+        await interaction.editReply(buildGemEnhancementMessage(result.view, result, {
+            footerName: user.mainCharacterName ?? user.displayName,
+            botName: interaction.client.user.username,
+        }));
     }
     catch (error) {
         const message = error instanceof Error ? error.message : '보석 강화에 실패했습니다.';

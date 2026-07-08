@@ -11,6 +11,9 @@ export const execute = async (interaction) => {
     if (!user)
         return;
     const view = await getGemEnhancementView(user.id);
-    await interaction.editReply(buildGemEnhancementMessage(view));
+    await interaction.editReply(buildGemEnhancementMessage(view, null, {
+        footerName: user.mainCharacterName ?? user.displayName,
+        botName: interaction.client.user.username,
+    }));
 };
 //# sourceMappingURL=%EB%B3%B4%EC%84%9D.js.map

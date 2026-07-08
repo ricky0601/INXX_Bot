@@ -22,13 +22,17 @@ export async function handleGemPrefixCommand(message, command) {
         return;
     }
     try {
+        const footer = {
+            footerName: user.mainCharacterName ?? user.displayName,
+            botName: message.client.user.username,
+        };
         if (command === 'view') {
             const view = await getGemEnhancementView(user.id);
-            await message.reply(buildGemEnhancementMessage(view, null, { withButtons: false }));
+            await message.reply(buildGemEnhancementMessage(view, null, { withButtons: false, ...footer }));
             return;
         }
         const result = await runGemEnhancementAction(user.id, 'attempt');
-        await message.reply(buildGemEnhancementMessage(result.view, result, { withButtons: false }));
+        await message.reply(buildGemEnhancementMessage(result.view, result, { withButtons: false, ...footer }));
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : '보석 강화에 실패했습니다.';
