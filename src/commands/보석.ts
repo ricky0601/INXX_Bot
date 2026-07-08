@@ -14,5 +14,10 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   if (!user) return
 
   const view = await getGemEnhancementView(user.id)
-  await interaction.editReply(buildGemEnhancementMessage(view))
+  await interaction.editReply(
+    buildGemEnhancementMessage(view, null, {
+      footerName: user.mainCharacterName ?? user.displayName,
+      botName: interaction.client.user.username,
+    }),
+  )
 }
