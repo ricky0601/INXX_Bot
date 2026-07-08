@@ -19,6 +19,7 @@ export type GemEnhancementState = {
   userId: string
   level: number
   levelLabel: string
+  levelIconUrl: string
   pity: number
   attempts: number
   successes: number
@@ -37,6 +38,10 @@ export type GemEnhancementState = {
     downShield: number
   }
   gahoExtraTry: number
+  enhancedMode: boolean
+  duelRemaining: number
+  luckyRemaining: number
+  guardRemaining: number
   createdAt: string
   updatedAt: string
 }
