@@ -124,11 +124,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
     catch (error) {
         console.error(error);
         const reply = { content: '명령 처리 중 오류가 발생했습니다.', flags: MessageFlags.Ephemeral };
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(reply);
+        try {
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp(reply);
+            }
+            else {
+                await interaction.reply(reply);
+            }
         }
-        else {
-            await interaction.reply(reply);
+        catch (fallbackError) {
+            console.error('Failed to send error fallback reply:', fallbackError);
         }
     }
 });
